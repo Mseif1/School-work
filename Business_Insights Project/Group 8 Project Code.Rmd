@@ -1,0 +1,546 @@
+---
+title: "Group 8 Project ITEC-620"
+author: "Loc Le"
+date: "2023-11-30"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages
+```{r}
+library(tree)
+library(tidyverse)
+library(dplyr)
+library(class)
+library(fastDummies)
+library(FNN)
+```
+
+**IMPORTANT**
+
+- Use specific Amazon.csv file uploaded in OneDrive folder
+- Run each code chunk one by one (do not run all)
+
+Loading Kaggle Dataset (Saved as Amazon.csv)
+```{r}
+Amazon <- read.csv("Amazon.csv")
+```
+
+Formatting Dataset
+```{r}
+# ONLY RUN THIS CODE CHUNK ONCE
+
+Amazon <- Amazon[,-1] # Remove Timestamp Column
+```
+
+```{r}
+# Creates a table of each variable to check for weird values such as N/As, blanks, etc. and infrequently occuring values that can be lumped into an "Other" category per the professor's suggestion
+
+variable_names <- names(Amazon)
+
+frequency_tables <- list()
+
+for (variable in variable_names) {
+  frequency_tables[[variable]] <- table(Amazon[[variable]])
+}
+
+for (i in seq_along(frequency_tables)) {
+  cat("Variable:", names(frequency_tables)[i], "\n")
+  print(frequency_tables[[i]])
+  cat("\n")
+}
+```
+
+```{r}
+# Removing rows with weird values
+
+Amazon <- Amazon[-c(23,120,383),]
+```
+
+```{r}
+# Gender
+
+Amazon <- Amazon %>% 
+  mutate(Gender = str_replace(Gender, 
+                                           "Prefer not to say", "Others"))
+```
+
+```{r}
+# Lumping purchase subcategories into their parent categories to reduce total number of categories
+
+# Beauty and Personal Care
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Beauty and Personal Care;Clothing and Fashion", "Beauty and Personal Care"))
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Beauty and Personal Care;Home and Kitchen", "Beauty and Personal Care"))
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Beauty and Personal Care;others", "Beauty and Personal Care"))
+
+# Clothing and Fashion
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Clothing and Fashion;Home and Kitchen", "Clothing and Fashion"))
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Clothing and Fashion;others", "Clothing and Fashion"))
+
+# Groceries and Gourmet Food
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Groceries and Gourmet Food;Beauty and Personal Care", "Groceries and Gourmet Food"))
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Groceries and Gourmet Food;Clothing and Fashion", "Groceries and Gourmet Food"))
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Groceries and Gourmet Food;Home and Kitchen", "Groceries and Gourmet Food"))
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Groceries and Gourmet Food;Home and Kitchen;others", "Groceries and Gourmet Food"))
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Groceries and Gourmet Food;others", "Groceries and Gourmet Food"))
+
+# Home and Kitchen
+
+Amazon <- Amazon %>% 
+  mutate(Purchase_Categories = str_replace(Purchase_Categories, 
+                                           "Home and Kitchen;others", "Home and Kitchen"))
+```
+
+```{r}
+# Lumping infrequent values in Service_Appreciation to an "Other" category
+
+# All the above
+
+Amazon <- Amazon %>% 
+  mutate(Service_Appreciation = str_replace(Service_Appreciation, 
+                                           "All the above", "Other"))
+
+# Customer service
+
+Amazon <- Amazon %>% 
+  mutate(Service_Appreciation = str_replace(Service_Appreciation, 
+                                           "Customer service", "Other"))
+
+# Quick delivery
+
+Amazon <- Amazon %>% 
+  mutate(Service_Appreciation = str_replace(Service_Appreciation, 
+                                           "Quick delivery", "Other"))
+```
+
+
+```{r}
+# Lumping similar values together as well as infrequent values in Improvement_Areas to an "Other" category
+
+# Other
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "Add more familiar brands to the list", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "better app interface and lower shipping charges", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "Irrelevant product suggestions", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "I don't have any problem with Amazon", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "I have no problem with Amazon yet but others tell me about the refund issues", "Other"))
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "Nil", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "No problems with Amazon", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "Nothing", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "Scrolling option would be much better than going to next page", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "User interface", "Other"))
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "App UI", "Other"))
+
+# Product quality and accuracy
+
+Amazon <- Amazon %>% 
+  mutate(Improvement_Areas = str_replace(Improvement_Areas, 
+                                           "Quality of product is very poor according to the big offers", "Product quality and accuracy"))
+```
+
+```{r}
+# Creates a new column called Purchase_Frequency_Num for transforming Purchase_Frequency values into numeric values per the professor's suggestion
+
+Amazon$Purchase_Frequency_Num <- 0.5 # Less than once a month
+
+Amazon$Purchase_Frequency_Num[Amazon$Purchase_Frequency == "Once a month"] <- 1
+
+Amazon$Purchase_Frequency_Num[Amazon$Purchase_Frequency == "Few times a month"] <- 3
+
+Amazon$Purchase_Frequency_Num[Amazon$Purchase_Frequency == "Once a week"] <- 5
+
+Amazon$Purchase_Frequency_Num[Amazon$Purchase_Frequency == "Multiple times a week"] <- 7
+```
+
+Less than once a month = 0.5
+
+Once a month = 1
+
+Few times a month = 3
+
+Once a week = 5
+
+Multiple times a week = 7
+
+Exploratory Data Analysis:
+
+```{r}
+ggplot(data = Amazon, mapping = aes(x = Purchase_Frequency, fill = Gender)) +
+  geom_bar(position = "dodge")
+```
+Majority of Amazon customers shop there a few times a month and females are the most prominent shoppers.
+
+```{r}
+ggplot(data = Amazon, mapping = aes(x = Purchase_Categories, fill = Gender)) +
+  geom_bar(position = "dodge")
+```
+The most popular category at Amazon is Beauty and Personal Care and it is where the majority of females are shopping.
+
+```{r}
+Amazon$Age_Category <- ifelse(Amazon$age <= 20, "1-20",
+                              ifelse(Amazon$age <= 40, "21-40",
+                                     ifelse(Amazon$age <= 60, "41-60", "61+")))
+```
+
+```{r}
+ggplot(data = Amazon, mapping = aes(x = Age_Category, fill = Gender)) +
+  geom_bar(position = "dodge")
+```
+The majority of female shoppers are between the ages of 21-40
+
+
+
+---
+
+```{r}
+# ONLY RUN THIS CODE CHUNK ONCE
+
+Amazon <- Amazon[,-3] # Remove old Purchase_Frequency column
+```
+
+```{r}
+# ONLY RUN THIS CODE CHUNK ONCE
+
+Amazon <- Amazon[,-23] # Remove Age_Category column
+```
+
+```{r}
+# Creating dummy variables from categorical variables
+
+Amazon <- dummy_cols(Amazon, select_columns=c("Gender", "Purchase_Categories", "Personalized_Recommendation_Frequency", "Browsing_Frequency", "Product_Search_Method", "Search_Result_Exploration", "Add_to_Cart_Browsing", "Cart_Completion_Frequency", "Cart_Abandonment_Factors", "Saveforlater_Frequency", "Review_Left", "Review_Reliability", "Review_Helpfulness", "Recommendation_Helpfulness", "Service_Appreciation", "Improvement_Areas"))
+```
+
+```{r}
+# Remove old categorical variables
+Amazon <- Amazon[,-c(2:7,9:15,17,20,21)]
+```
+
+```{r}
+glimpse(Amazon)
+```
+
+```{r}
+# Replace spaces in variables with underscores
+colnames(Amazon) <- gsub(" ", "_", colnames(Amazon))
+```
+
+```{r}
+# Manual fix for this variable
+names(Amazon)[names(Amazon) == "Service_Appreciation_User-friendly_website/app_interface"] <- "Service_Appreciation_User_friendly_website_or_app_interface"
+```
+
+# Regression Analysis
+
+```{r}
+set.seed(12345)
+training <- sample(1:nrow(Amazon), 0.6*nrow(Amazon))
+ycol <- match("Purchase_Frequency_Num",colnames(Amazon))
+Amazon.training <- Amazon[training,-ycol]
+Amazon.training.results <- Amazon[training,ycol]
+Amazon.test <- Amazon[-training,-ycol]
+Amazon.test.results <- Amazon[-training,ycol]
+```
+
+```{r}
+# Linear Regression with all variables (removed variables are baselines)
+Amazon.reg.full <- lm(Purchase_Frequency_Num ~ . 
+                 -Gender_Male 
+                 -Purchase_Categories_Beauty_and_Personal_Care 
+                 - Personalized_Recommendation_Frequency_No
+                 - Browsing_Frequency_Multiple_times_a_day
+                 - Product_Search_Method_categories
+                 - Search_Result_Exploration_Multiple_pages
+                 - Add_to_Cart_Browsing_Yes
+                 - Cart_Completion_Frequency_Never
+                 - Cart_Abandonment_Factors_Found_a_better_price_elsewhere
+                 - Saveforlater_Frequency_Never
+                 - Review_Left_Yes
+                 - Review_Reliability_Never
+                 - Review_Helpfulness_Yes
+                 - Recommendation_Helpfulness_No
+                 - Service_Appreciation_Wide_product_selection
+                 - Improvement_Areas_Reducing_packaging_waste
+                 ,data = Amazon[training,])
+
+Amazon.reg.full.predictions <- predict(Amazon.reg.full,Amazon)[-training]
+(mean((Amazon.test.results-Amazon.reg.full.predictions)^2))^0.5
+```
+
+RMSE of linear regression model with all variables = 1.990002
+
+```{r}
+summary(Amazon.reg.full)
+```
+
+
+```{r}
+# New model with insignificant variables removed
+
+Amazon.reg.reduced <- lm(Purchase_Frequency_Num ~ . 
+                 -Gender_Male 
+                 -Purchase_Categories_Beauty_and_Personal_Care 
+                 -Personalized_Recommendation_Frequency_No
+                 -Browsing_Frequency_Multiple_times_a_day
+                 -Product_Search_Method_categories
+                 -Search_Result_Exploration_Multiple_pages
+                 -Add_to_Cart_Browsing_Yes
+                 -Cart_Completion_Frequency_Never
+                 -Cart_Abandonment_Factors_Found_a_better_price_elsewhere
+                 -Saveforlater_Frequency_Never
+                 -Review_Left_Yes
+                 -Review_Reliability_Never
+                 -Review_Helpfulness_Yes
+                 -Recommendation_Helpfulness_No
+                 -Service_Appreciation_Wide_product_selection
+                 -Improvement_Areas_Reducing_packaging_waste
+                 -age
+                 -Customer_Reviews_Importance
+                 -Personalized_Recommendation_Frequency.1
+                 -Rating_Accuracy
+                 -Shopping_Satisfaction
+                 -Gender_Others
+                 -Personalized_Recommendation_Frequency_Sometimes
+                 -Browsing_Frequency_Few_times_a_month
+                 -Browsing_Frequency_Few_times_a_week
+                 -Browsing_Frequency_Rarely
+                 -Product_Search_Method_Filter
+                 -Product_Search_Method_Keyword
+                 -Product_Search_Method_others
+                 -Search_Result_Exploration_First_page
+                 -Add_to_Cart_Browsing_Maybe
+                 -Cart_Completion_Frequency_Often
+                 -Cart_Completion_Frequency_Rarely
+                 -Cart_Completion_Frequency_Sometimes
+                 -Cart_Abandonment_Factors_Changed_my_mind_or_no_longer_need_the_item
+                 -Cart_Abandonment_Factors_High_shipping_costs
+                 -Cart_Abandonment_Factors_others
+                 -Saveforlater_Frequency_Always
+                 -Saveforlater_Frequency_Often
+                 -Saveforlater_Frequency_Rarely
+                 -Saveforlater_Frequency_Sometimes
+                 -Review_Reliability_Heavily
+                 -Review_Reliability_Moderately
+                 -Review_Reliability_Occasionally
+                 -Review_Reliability_Rarely
+                 -Review_Helpfulness_No
+                 -Review_Helpfulness_Sometimes
+                 -Recommendation_Helpfulness_Sometimes
+                 -Recommendation_Helpfulness_Yes
+                 -Service_Appreciation_Competitive_prices
+                 -Service_Appreciation_Other
+                 -Service_Appreciation_Product_recommendations
+                 -Service_Appreciation_User_friendly_website_or_app_interface
+                 -Improvement_Areas_Customer_service_responsiveness
+                 -Improvement_Areas_Other
+                 -Improvement_Areas_Product_quality_and_accuracy
+                 , data = Amazon[training, ])
+
+
+Amazon.reg.reduced.predictions <- predict(Amazon.reg.reduced,Amazon)[-training]
+(mean((Amazon.test.results-Amazon.reg.reduced.predictions)^2))^0.5
+```
+
+RMSE of linear regression model with removed variables = 1.979471
+
+```{r}
+summary(Amazon.reg.reduced)
+```
+
+```{r}
+# New model with insignificant variables removed (Iteration 2)
+
+Amazon.reg.reduced2 <- lm(Purchase_Frequency_Num ~ . 
+                 -Gender_Male 
+                 -Purchase_Categories_Beauty_and_Personal_Care 
+                 -Personalized_Recommendation_Frequency_No
+                 -Browsing_Frequency_Multiple_times_a_day
+                 -Product_Search_Method_categories
+                 -Search_Result_Exploration_Multiple_pages
+                 -Add_to_Cart_Browsing_Yes
+                 -Cart_Completion_Frequency_Never
+                 -Cart_Abandonment_Factors_Found_a_better_price_elsewhere
+                 -Saveforlater_Frequency_Never
+                 -Review_Left_Yes
+                 -Review_Reliability_Never
+                 -Review_Helpfulness_Yes
+                 -Recommendation_Helpfulness_No
+                 -Service_Appreciation_Wide_product_selection
+                 -Improvement_Areas_Reducing_packaging_waste
+                 -age
+                 -Customer_Reviews_Importance
+                 -Personalized_Recommendation_Frequency.1
+                 -Rating_Accuracy
+                 -Shopping_Satisfaction
+                 -Gender_Others
+                 -Personalized_Recommendation_Frequency_Sometimes
+                 -Browsing_Frequency_Few_times_a_month
+                 -Browsing_Frequency_Few_times_a_week
+                 -Browsing_Frequency_Rarely
+                 -Product_Search_Method_Filter
+                 -Product_Search_Method_Keyword
+                 -Product_Search_Method_others
+                 -Search_Result_Exploration_First_page
+                 -Add_to_Cart_Browsing_Maybe
+                 -Cart_Completion_Frequency_Often
+                 -Cart_Completion_Frequency_Rarely
+                 -Cart_Completion_Frequency_Sometimes
+                 -Cart_Abandonment_Factors_Changed_my_mind_or_no_longer_need_the_item
+                 -Cart_Abandonment_Factors_High_shipping_costs
+                 -Cart_Abandonment_Factors_others
+                 -Saveforlater_Frequency_Always
+                 -Saveforlater_Frequency_Often
+                 -Saveforlater_Frequency_Rarely
+                 -Saveforlater_Frequency_Sometimes
+                 -Review_Reliability_Heavily
+                 -Review_Reliability_Moderately
+                 -Review_Reliability_Occasionally
+                 -Review_Reliability_Rarely
+                 -Review_Helpfulness_No
+                 -Review_Helpfulness_Sometimes
+                 -Recommendation_Helpfulness_Sometimes
+                 -Recommendation_Helpfulness_Yes
+                 -Service_Appreciation_Competitive_prices
+                 -Service_Appreciation_Other
+                 -Service_Appreciation_Product_recommendations
+                 -Service_Appreciation_User_friendly_website_or_app_interface
+                 -Improvement_Areas_Customer_service_responsiveness
+                 -Improvement_Areas_Other
+                 -Improvement_Areas_Product_quality_and_accuracy
+                 -Gender_Female
+                 -Purchase_Categories_Groceries_and_Gourmet_Food
+                 , data = Amazon[training, ])
+
+
+Amazon.reg.reduced2.predictions <- predict(Amazon.reg.reduced2,Amazon)[-training]
+(mean((Amazon.test.results-Amazon.reg.reduced2.predictions)^2))^0.5
+```
+
+RMSE of linear regression model with removed variables (second iteration) = 1.980209
+
+This is higher than previously so it will not be used.
+
+Therefore, Linear Regression Model 2 is the best
+
+```{r}
+summary(Amazon.reg.reduced2)
+```
+
+
+KNN
+
+```{r}
+# Find optimal value of k
+best.k <- -1
+RMSE <- -1
+best.RMSE <- 99999999
+for (i in seq(from=1, to=100, by=2)) {
+  set.seed(12345)
+  Amazon.knn <- knn.reg(Amazon.training, Amazon.test, Amazon.training.results, k=i)
+  RMSE <- (mean((Amazon.knn$pred - Amazon.test.results)^2))^0.5
+  if (RMSE < best.RMSE) {
+    best.k <- i
+    best.RMSE <- RMSE
+  }
+}
+print(paste("The optimal value of k is",best.k,"with a RMSE of",best.RMSE))
+```
+
+```{r}
+Amazon.knn <- knn.reg(Amazon.training, Amazon.test, Amazon.training.results, k=25)
+(mean((Amazon.knn$pred - Amazon.test.results)^2))^0.5
+```
+
+Regression Tree:
+
+```{r}
+best.mindev <- -1
+RMSE <- -1
+best.RMSE <- 99999999
+for (i in seq(from=0.0005, to=0.05, by=0.0005)) {
+  Amazon.tree <- tree(Purchase_Frequency_Num ~ ., data=Amazon[training,], mindev=i)
+  Amazon.tree.predictions <- predict(Amazon.tree,Amazon)[-training]
+  RMSE <- (mean((Amazon.test.results-Amazon.tree.predictions)^2))^0.5
+  if (RMSE < best.RMSE) {
+    best.mindev <- i
+    best.RMSE <- RMSE
+  }
+}
+print(paste("The optimal value of mindev is",best.mindev,"with a RMSE of",best.RMSE))
+```
+
+```{r}
+Amazon.tree <- tree(Purchase_Frequency_Num ~., data=Amazon[training,],mindev=0.045)
+Amazon.tree.predictions <- predict(Amazon.tree,Amazon)[-training]
+(mean((Amazon.test.results-Amazon.tree.predictions)^2))^0.5
+```
+
+```{r}
+plot(Amazon.tree)
+text(Amazon.tree, cex=0.6)
+```
+
+
