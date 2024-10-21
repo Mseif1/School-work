@@ -1,0 +1,557 @@
+---
+title: "Practicum"
+subtitle: "KSB 620"
+author: "group"
+date: "`r Sys.Date()`"
+
+format: 
+   docx:
+     toc: true
+     toc-depth: 3
+     toc-expand: 3
+     toc-location: right
+
+fig-width: 10
+fig-height: 6
+fontsize: 10pt
+geometry: "left = 2cm, right = 2cm, top = 2cm, bottom = 2cm"
+
+echo: true
+include: true
+warning: false
+message: false
+
+abstract: This Quarto file contains the Practicum Workspace.
+---
+
+## Data Preprocessing
+
+```{r Read in Work Order Table}
+library(readxl)
+library(olsrr)
+library(dplyr)
+
+workorder <- Work_Order
+summary(workorder)
+
+```
+
+Renaming column names for consistency.
+
+```{r}
+names(workorder)[names(workorder) == "Estimated Start Date"] <- 
+  "EstimatedStartDate"
+
+names(workorder)[names(workorder) == "Total Work Order Hours"] <- 
+  "TotalWorkOrderHours"
+
+names(workorder)[names(workorder) == "Actual Completion Date"] <- 
+  "ActualCompletionDate"
+```
+
+Replacing "-" values with NA, assigning -1 as a placeholder for the missing values and then converting the variables to the appropriate class. 
+```{r Convert assetid to integer}
+library(forcats)
+
+#convert assetid to integer
+workorder$assetid[workorder$assetid == "-"] <- NA
+workorder$assetid <- as.factor(workorder$assetid)
+workorder$assetid <- as.integer(workorder$assetid)
+workorder$assetid[is.na(workorder$assetid)] <- -1
+workorder$assetid <- as.integer(workorder$assetid)
+
+class(workorder$assetid)
+```
+
+```{r Convert total work hours to numeric}
+# convert total work hours to numeric
+summary(workorder$TotalWorkOrderHours)
+workorder$TotalWorkOrderHours[is.na(workorder$TotalWorkOrderHours) ==
+                                "-"] <- NA
+workorder$TotalWorkOrderHours <- 
+  as.factor(workorder$TotalWorkOrderHours)
+workorder$TotalWorkOrderHours <-
+  as.numeric(workorder$TotalWorkOrderHours)
+workorder$TotalWorkOrderHours[is.na(workorder$TotalWorkOrderHours)] <- -1
+workorder$TotalWorkOrderHours <- 
+  as.numeric(workorder$TotalWorkOrderHours)
+
+class(workorder$TotalWorkOrderHours)
+```
+
+```{r Convert locationid and siteid to integer}
+# convert locationid and siteid to integer
+workorder$locationid[workorder$locationid == "-"] <- NA
+workorder$locationid <- as.factor(workorder$locationid)
+workorder$locationid <- as.numeric(workorder$locationid)
+workorder$locationid[is.na(workorder$locationid)] <- -1
+workorder$locationid <- as.integer(workorder$locationid)
+
+class(workorder$locationid)
+```
+
+```{r Convert cost to numeric}
+# convert cost to numeric
+workorder$Cost <- gsub("\\$|,", "", workorder$Cost)
+workorder$Cost <- as.numeric(workorder$Cost)
+
+class(workorder$Cost)
+```
+
+```{r Convert WOID to numeric}
+#convert WOID to numeric
+workorder$WOID <- as.numeric(workorder$WOID)
+
+class(workorder$WOID)
+```
+
+Changing the format of all the data variables to ensure consistency.
+
+```{r Reformat dates}
+workorder$DateRequested[is.na(workorder$DateRequested) == "-"] <- NA
+workorder$DateRequested <- as.Date(workorder$DateRequested, 
+                                   format = "%m/%d/%y")
+str(workorder$DateRequested)
+
+workorder$EstimatedStartDate[is.na(workorder$EstimatedStartDate) ==
+                                 "-"] <- NA
+workorder$EstimatedStartDate <- 
+  as.Date(workorder$EstimatedStartDate, format = "%m/%d/%y")
+str(workorder$EstimatedStartDate)
+
+workorder$DateCreated[is.na(workorder$DateCreated) == "-"] <- NA
+workorder$DateCreated <- as.Date(workorder$DateCreated, 
+                                 format = "%m/%d/%y")
+str(workorder$DateCreated)
+
+workorder$ActualCompletionDate[is.na(workorder$ActualCompletionDate) == 
+                                 "-"] <- NA
+workorder$ActualCompletionDate <- 
+  as.Date(workorder$ActualCompletionDate, format = "%m/%d/%y")
+str(workorder$ActualCompletionDate)
+```
+
+We then created a new column to assign the client names to their appropriate industry.
+
+```{r Assign clients to industries}
+workorder$industry <- NA
+
+for (i in 1:nrow(workorder)) {
+  if (workorder$ClientXref[i] == "Client 27") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 117") {
+    workorder$industry[i] <- "Government"
+  } else if (workorder$ClientXref[i] == "Client 62") {
+    workorder$industry[i] <- "Government"
+  } else if (workorder$ClientXref[i] == "Client 39") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 66") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 92") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 96") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 90") {
+    workorder$industry[i] <- "Government"
+  } else if (workorder$ClientXref[i] == "Client 152") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 2") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 20") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 30") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 35") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 42") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 49") {
+    workorder$industry[i] <- "Education"
+  }
+}
+
+table(workorder$industry)
+```
+
+
+## Basic Descriptive Analytics
+
+
+
+```{r Compare work order hours by industry}
+library(ggplot2)
+# compare work order hours by industry
+hours_filtered <- workorder %>%
+  filter('TotalWorkOrderHours' != -1)
+
+summary_stats <- hours_filtered %>% 
+  group_by(industry) %>%
+  summarise(
+    mean_hours = mean('TotalWorkOrderHours'),
+    median_hours = median('TotalWorkOrderHours')
+  )
+
+ggplot(hours_filtered, 
+       aes(x = industry, y = 'TotalWorkOrderHours')) +
+  geom_boxplot() +
+  labs(title = "Comparison of Total Work Order Hours by Industry", 
+       x = "Industry",
+       y = "Total Work Order Hours") +
+  theme_minimal()
+```
+
+```{r Workorders in each category}
+library(lubridate)
+# number of workorders in each category
+ggplot(workorder, aes(x = industry)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Number of Work Orders in Each Industry",
+       x = "Industry",
+       y = "Number of Work Orders") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+
+workorder$Year <- year(workorder$DateRequested)
+workorder$Month <- month(workorder$DateRequested)
+```
+
+```{r Completion rates by month}
+#completion rates by month
+completion_rates <- workorder %>%
+  group_by(Year, Month) %>%
+  summarize(CompletionRate = mean(Status == "Completed"))
+```
+
+```{r Completion rates over time}
+# completion rates over time
+ggplot(completion_rates, 
+       aes(x = as.Date(paste(Year, Month, "01", sep = "-")), 
+           y = CompletionRate)) +
+  geom_line() +
+  labs(x = "Date", y = "Completion Rate", 
+       title = "Work Order Completion Rate Over Time")
+
+future_dates <- seq(as.Date("2024-01-01"), 
+                    as.Date("2024-12-01"), by = "month")
+
+future_completion_rates <- data.frame(Year = year(future_dates),
+                                      Month = month(future_dates),
+                                      CompletionRate = NA)
+```
+
+```{r Observed and future completion rates}
+library(forecast)
+
+# Combine observed and future completion rates
+combined_completion_rates <- bind_rows(completion_rates, 
+                                       future_completion_rates)
+
+sma_model <- ma(completion_rates$CompletionRate, order = 12)  
+# Using a 12-month moving average
+```
+
+```{r Forecasts for future months}
+# Generate forecasts for future months
+forecast_values <- forecast(sma_model, h = 12)  
+# Forecast for the next 12 months
+```
+
+```{r Correlation Matrix}
+#Corrleation Matrix
+library(corrplot)
+
+#see which variables are numeric 
+numeric_columns <- sapply(workorder, is.numeric)
+
+# copy of workorder file 
+workorder_numeric <- workorder
+workorder_numeric <- na.omit(workorder_numeric)
+
+# Select integer and numeric variables without NA values
+numeric_values <- workorder_numeric[, 
+                                    sapply(workorder_numeric,
+                                           function(x) is.numeric(x) |
+                                             is.integer(x)) &
+                                      !apply(is.na(workorder_numeric),
+                                             2, any)]
+
+corr_matrix <- cor(numeric_values, use = "pairwise.complete.obs")
+numeric_values
+corrplot(corr_matrix, method = "ellipse")
+```
+
+```{r Correlation plot 2}
+library(viridis)
+library(reshape2)
+
+numeric_vars <- select_if(workorder_numeric, is.numeric)
+
+corr_mat <- round(cor(numeric_vars), 2)
+
+melted_corr_mat <- melt(corr_mat)
+
+ggplot(data = melted_corr_mat, 
+       aes(x = Var1, y = Var2, fill = value)) + 
+  geom_tile() +
+  geom_text(aes(label = value, 
+                color = ifelse(value == 1, "black", "white")), 
+            size = 4) +
+  scale_fill_gradientn(colors = magma(100)) + 
+  scale_color_manual(values = c("black", "white")) +
+  guides(color = FALSE)
+```
+
+```{r Average Workorder hours by WOID}
+#average work order hours by WOID
+workorder_aggregated <- workorder_numeric %>%
+  group_by(WOID) %>%
+  summarize(avg_order_hours = mean(TotalWorkOrderHours, na.rm = TRUE))
+
+workorder_with_aggregated <- merge(workorder, workorder_aggregated, 
+                                   by = "WOID", all.x = TRUE)
+```
+
+
+## Basic Predictive Analytics
+
+### Random Forest
+
+```{r Random Forest}
+library(randomForest)
+
+X <- workorder_with_aggregated[, c("ClientXref", "Status", "Cost",
+                                   "Problem", "Priority", "CostCenter",
+                                   "Cause", "SourceType", "assetid",
+                                   "locationid", "siteid")] 
+
+Y <- workorder_with_aggregated$Status
+
+rf_model <- randomForest(Status ~., data = X, ntree = 100)
+print(rf_model)
+print(importance(rf_model))
+
+reg_model <- lm(workorder_with_aggregated$Status)
+
+
+workorder_with_aggregated$Problem[workorder_with_aggregated$Problem ==
+                                    "-"] <- NA
+
+workorder_with_aggregated$Problem <-
+  as.factor(workorder_with_aggregated$Problem)
+
+
+workorder_with_aggregated$Priority[workorder_with_aggregated$Priority ==
+                                     "-"] <- NA
+
+workorder_with_aggregated$Priority <-
+  as.factor(workorder_with_aggregated$Priority)
+
+
+workorder_with_aggregated$WorkType[workorder_with_aggregated$WorkType ==
+                                     "-"] <- NA
+
+workorder_with_aggregated$WorkType <-
+  as.factor(workorder_with_aggregated$WorkType)
+
+
+workorder_with_aggregated$WorkCategory[
+  workorder_with_aggregated$WorkCategory == "-"] <- NA
+
+workorder_with_aggregated$WorkCategory <-
+  as.factor(workorder_with_aggregated$WorkCategory)
+
+
+workorder_with_aggregated$CostCenter[
+  workorder_with_aggregated$CostCenter == "-"] <- NA
+
+workorder_with_aggregated$CostCenter <-
+  as.factor(workorder_with_aggregated$CostCenter)
+
+
+workorder_with_aggregated$Cause[workorder_with_aggregated$Cause == 
+                                  "-"] <- NA
+
+workorder_with_aggregated$Cause <-
+  as.factor(workorder_with_aggregated$Cause)
+
+
+missing_status <- sum(is.na(workorder_with_aggregated$Status))
+dim_X <- dim(X)
+dim_Y <- length(Y)
+
+
+reg_model <- lm(Priority ~., data = workorder_aggregated)
+```
+
+### Association Rules
+
+```{r Association Rules}
+library(arules)
+relevant_vars <- c("WOID","WorkCategory", "Priority", "Cause")
+
+subset_data <- workorder[, relevant_vars]
+
+subset_data$WOID <- as.character(subset_data$WOID)
+
+subset_data[subset_data == "-"] <- NA
+
+subset_data <- subset_data[complete.cases(subset_data), ]
+
+trans2 <- as(subset_data[, -1], "transactions")
+
+rules2 <- apriori(trans2, 
+                 parameter = list(support = 0.1, 
+                                  confidence = 0.8, 
+                                  target = "rules"))
+
+rules_conf <- sort (rules2, by="confidence", decreasing=TRUE)
+
+inspect(head(rules_conf))
+```
+
+```{r}
+frequentItems <- eclat (trans2, parameter = 
+                          list(supp = 0.07, maxlen = 15))
+
+inspect(frequentItems)
+
+itemFrequencyPlot(trans2, topN=10, 
+                  type="absolute", main="Item Frequency")
+```
+
+```{r}
+library(leaps)
+library(caret)
+target <- "Cost"
+preprocess_data <- function(df) {
+  df_clean <- df
+  for (col_name in colnames(df_clean)) {
+    if (any(is.na(df_clean[[col_name]]))) {
+      if (is.numeric(df_clean[[col_name]])) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "-"
+      } else if (is.character(df_clean[[col_name]])) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "missing"
+      } else if (inherits(df_clean[[col_name]], "Date")) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- as.Date("1900-01-01")
+      } else if (is.factor(df_clean[[col_name]])) {
+        df_clean[[col_name]] <- as.character(df_clean[[col_name]])
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "missing"
+        df_clean[[col_name]] <- as.factor(df_clean[[col_name]])
+      }
+    }
+  }
+  return(df_clean)
+}
+workorder_clean <- preprocess_data(workorder[, !colnames(workorder) %in% c(target)])
+workorder_clean$Cost <- as.factor(workorder[[target]])
+workorder_clean <- cbind(workorder_clean, Cost = workorder[[target]])
+exhaustive_search <- regsubsets(Cost ~ TotalWorkOrderHours, Cost, WorkCategory, Priority, Cause, EstimatedStartDate, WorkType, industry, ClientXref, Problem, data = workorder_clean, nvmax = ncol(workorder_clean) - 1, method = "exhaustive")
+summary_exhaustive <- summary(exhaustive_search)
+print(summary_exhaustive$which)
+
+
+```
+
+```{r Anomalize}
+library(anomalize)
+
+relevant_vars <- c("TotalWorkOrderHours", 
+                   "Cost", "WorkCategory", "Priority", "Cause", "EstimatedStartDate", "WorkType", "industry", "ClientXref")
+```
+
+
+```{r Subset relevant variables}
+# Create a subset of your data with only the relevant variables
+library(tibble)
+library(dplyr)
+```
+
+
+```{r Subset relevant variables}
+subset_data <- workorder[, relevant_vars]
+subset_data <- as_tibble(subset_data)
+subset_data$Priority[subset_data$Priority == "-"] <- NA
+subset_data$Priority <- as.factor(subset_data$Priority)
+subset_data <- subset_data %>%
+  mutate(across(Priority, ~as.integer(. == levels(.))))
+subset_data$Priority <- as.character(workorder$Priority)
+subset_data[2, "Priority"] <- "-"
+subset_data$Priority <- as.factor(workorder$Priority)
+subset_data[subset_data == "-"] <- NA
+
+```
+
+
+```{r }
+# Create a subset of your data with only the relevant variables
+subset_data <- workorder[, relevant_vars]
+subset_data <- as_tibble(subset_data)
+subset_data$Priority[subset_data$Priority == "-"] <- NA
+subset_data$Priority <- as.factor(subset_data$Priority)
+subset_data <- subset_data %>%
+  mutate(across(Priority, ~as.integer(. == levels(.))))
+```
+#NA rectifation method 1 
+```{r}
+library(dplyr)
+predictive_impute <- function(x) {
+  if (is.numeric(x)) {
+    # For numeric variables. using mean
+    return(ifelse(is.na(x), mean(x, na.rm = TRUE), x))
+  } else {
+    # For character variables. using mode
+    mode_val <- names(sort(table(x), decreasing = TRUE))[1]
+    return(ifelse(is.na(x), mode_val, x))
+  }
+}
+imputed_data <- subset_data%>%
+  mutate_all(~predictive_impute(.))
+head(imputed_data)
+str(imputed_data)
+
+```
+
+
+# Linear regression
+
+```{r}
+library(olsrr)
+model_5 <- lm(Priority ~ industry + WorkType + WorkCategory, TotalWorkOrderHours * EstimatedStartDate, data = imputed_data)
+summary(model_5)
+plot(model_5)
+```
+```{r}
+
+library(dplyr)
+
+grouped_data <- workorder %>%
+  group_by(ClientXref)
+
+priority_counts <- grouped_data %>%
+  count(ClientXref, Priority)
+
+# Create a bar plot
+priority_plot <- ggplot(priority_counts, aes(x = ClientXref, y = n, fill = Priority)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Priority Distribution by Client",
+       x = "Client",
+       y = "Count",
+       fill = "Priority") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show the plot
+print(priority_plot)
+```
+
+
+
+```{r}
+library(dplyr)
+
+imodel_1 <- lm(Priority ~ industry * TotalWorkOrderHours, data = subset_data)
+
+summary(imodel_1)
+plot(imodel_1)
+
+```

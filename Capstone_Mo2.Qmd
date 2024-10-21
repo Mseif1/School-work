@@ -1,0 +1,574 @@
+---
+title: "Practicum 2"
+subtitle: "KSB 621"
+author: "Mohamed S"
+date: "20 June 2024"
+
+format: 
+   docx:
+     toc: true
+     toc-depth: 3
+     toc-expand: 3
+     toc-location: right
+
+fig-width: 10
+fig-height: 6
+fontsize: 10pt
+geometry: "left = 2cm, right = 2cm, top = 2cm, bottom = 2cm"
+
+echo: true
+include: true
+warning: false
+message: false
+
+abstract: This Quarto file contains the Practicum Workspace.
+---
+
+## Data Preprocessing
+
+```{r Read in Work Order Table}
+library(readxl)
+library(olsrr)
+library(dplyr)
+
+workorder <- Work_Order
+summary(workorder)
+
+```
+
+Renaming column names for consistency.
+
+```{r}
+names(workorder)[names(workorder) == "Estimated Start Date"] <- 
+  "EstimatedStartDate"
+
+names(workorder)[names(workorder) == "Total Work Order Hours"] <- 
+  "TotalWorkOrderHours"
+
+names(workorder)[names(workorder) == "Actual Completion Date"] <- 
+  "ActualCompletionDate"
+```
+
+Replacing "-" values with NA, assigning -1 as a placeholder for the missing values and then converting the variables to the appropriate class.
+
+```{r Convert assetid to integer}
+library(forcats)
+
+#convert assetid to integer
+workorder$assetid[workorder$assetid == "-"] <- NA
+workorder$assetid <- as.factor(workorder$assetid)
+workorder$assetid <- as.integer(workorder$assetid)
+workorder$assetid[is.na(workorder$assetid)] <- -1
+workorder$assetid <- as.integer(workorder$assetid)
+
+class(workorder$assetid)
+```
+
+```{r Convert total work hours to numeric}
+# convert total work hours to numeric
+summary(workorder$TotalWorkOrderHours)
+workorder$TotalWorkOrderHours[is.na(workorder$TotalWorkOrderHours) ==
+                                "-"] <- NA
+workorder$TotalWorkOrderHours <- 
+  as.factor(workorder$TotalWorkOrderHours)
+workorder$TotalWorkOrderHours <-
+  as.numeric(workorder$TotalWorkOrderHours)
+workorder$TotalWorkOrderHours[is.na(workorder$TotalWorkOrderHours)] <- -1
+workorder$TotalWorkOrderHours <- 
+  as.numeric(workorder$TotalWorkOrderHours)
+
+class(workorder$TotalWorkOrderHours)
+```
+
+```{r Convert locationid and siteid to integer}
+# convert locationid and siteid to integer
+workorder$locationid[workorder$locationid == "-"] <- NA
+workorder$locationid <- as.factor(workorder$locationid)
+workorder$locationid <- as.numeric(workorder$locationid)
+workorder$locationid[is.na(workorder$locationid)] <- -1
+workorder$locationid <- as.integer(workorder$locationid)
+
+class(workorder$locationid)
+```
+
+```{r Convert cost to numeric}
+# convert cost to numeric
+workorder$Cost <- gsub("\\$|,", "", workorder$Cost)
+workorder$Cost <- as.numeric(workorder$Cost)
+
+class(workorder$Cost)
+```
+
+```{r Convert WOID to numeric}
+#convert WOID to numeric
+workorder$WOID <- as.numeric(workorder$WOID)
+
+class(workorder$WOID)
+```
+
+Changing the format of all the data variables to ensure consistency.
+
+```{r Reformat dates}
+workorder$DateRequested[is.na(workorder$DateRequested) == "-"] <- NA
+workorder$DateRequested <- as.Date(workorder$DateRequested, 
+                                   format = "%m/%d/%y")
+str(workorder$DateRequested)
+
+workorder$EstimatedStartDate[is.na(workorder$EstimatedStartDate) ==
+                                 "-"] <- NA
+workorder$EstimatedStartDate <- 
+  as.Date(workorder$EstimatedStartDate, format = "%m/%d/%y")
+str(workorder$EstimatedStartDate)
+
+workorder$DateCreated[is.na(workorder$DateCreated) == "-"] <- NA
+workorder$DateCreated <- as.Date(workorder$DateCreated, 
+                                 format = "%m/%d/%y")
+str(workorder$DateCreated)
+
+workorder$ActualCompletionDate[is.na(workorder$ActualCompletionDate) == 
+                                 "-"] <- NA
+workorder$ActualCompletionDate <- 
+  as.Date(workorder$ActualCompletionDate, format = "%m/%d/%y")
+str(workorder$ActualCompletionDate)
+```
+
+We then created a new column to assign the client names to their appropriate industry.
+
+```{r Assign clients to industries}
+workorder$industry <- NA
+
+for (i in 1:nrow(workorder)) {
+  if (workorder$ClientXref[i] == "Client 27") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 117") {
+    workorder$industry[i] <- "Government"
+  } else if (workorder$ClientXref[i] == "Client 62") {
+    workorder$industry[i] <- "Government"
+  } else if (workorder$ClientXref[i] == "Client 39") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 66") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 92") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 96") {
+    workorder$industry[i] <- "Education"
+  } else if (workorder$ClientXref[i] == "Client 90") {
+    workorder$industry[i] <- "Government"
+  } else if (workorder$ClientXref[i] == "Client 152") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 2") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 20") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 30") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 35") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 42") {
+    workorder$industry[i] <- "Manufacturing"
+  } else if (workorder$ClientXref[i] == "Client 49") {
+    workorder$industry[i] <- "Education"
+  }
+}
+
+table(workorder$industry)
+```
+
+#Education subset
+
+```{r}
+client_subset <- workorder %>% filter(industry == "Education")
+client_subset <- client_subset[, relevant_vars]
+client_subset <- as_tibble(client_subset)
+```
+
+```{r}
+frequentItems <- eclat (trans2, parameter = 
+                          list(supp = 0.07, maxlen = 15))
+
+inspect(frequentItems)
+
+itemFrequencyPlot(trans2, topN=10, 
+                  type="absolute", main="Item Frequency")
+```
+
+
+
+```{r}
+library(leaps)
+library(caret)
+
+preprocess_data <- function(df) {
+  df_clean <- df
+  for (col_name in colnames(df_clean)) {
+    if (any(is.na(df_clean[[col_name]]))) {
+      if (is.numeric(df_clean[[col_name]])) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "-999"
+      } else if (is.character(df_clean[[col_name]])) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "missing"
+      } else if (inherits(df_clean[[col_name]], "Date")) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- as.Date("1900-01-01")
+      } else if (is.factor(df_clean[[col_name]])) {
+        df_clean[[col_name]] <- as.character(df_clean[[col_name]])
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "missing"
+        df_clean[[col_name]] <- as.factor(df_clean[[col_name]])
+      }
+    }
+  }
+  return(df_clean)
+}
+target <- "ClientXref"
+client_subset_clean <- preprocess_data(client_subset[, !colnames(client_subset) %in% c(target)])
+client_subset_clean$ClientXref <- as.factor(client_subset[[target]])
+convert_to_numeric <- function(df) {
+  df_numeric <- df
+  for (col_name in colnames(df_numeric)) {
+    if (is.factor(df_numeric[[col_name]]) || is.character(df_numeric[[col_name]])) {
+      df_numeric[[col_name]] <- as.numeric(as.factor(df_numeric[[col_name]]))
+    }
+  }
+  return(df_numeric)
+}
+
+predictors <- client_subset_clean[, !colnames(client_subset_clean) %in% c(target)]
+client_subset_clean$Cost <- as.numeric(as.factor(client_subset_clean$Cost))
+
+
+ctrl <- rfeControl(functions = rfFuncs, method = "cv", number = 10, allowParallel = TRUE)
+exhaustive_search <- regsubsets(Client49 ~ ., data = client_subset_clean, nvmax = 4, nbest = 10, method = "forward")
+summary_exhaustive <- summary(exhaustive_search)
+
+print(summary_exhaustive$which)
+best_model_index <- which.min(summary_exhaustive$bic)
+best_model_variables <- names(which(summary_exhaustive$which[best_model_index, ] == TRUE))
+
+print(paste("Best model variables:", paste(best_model_variables, collapse = ", ")))
+
+print(best_model_variables)
+
+
+```
+
+```{r}
+preprocess_data <- function(df) {
+  df_clean <- df
+  for (col_name in colnames(df_clean)) {
+    if (any(is.na(df_clean[[col_name]]))) {
+      if (is.numeric(df_clean[[col_name]])) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "-999"
+      } else if (is.character(df_clean[[col_name]])) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "missing"
+      } else if (inherits(df_clean[[col_name]], "Date")) {
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- as.Date("1900-01-01")
+      } else if (is.factor(df_clean[[col_name]])) {
+        df_clean[[col_name]] <- as.character(df_clean[[col_name]])
+        df_clean[[col_name]][is.na(df_clean[[col_name]])] <- "missing"
+        df_clean[[col_name]] <- as.factor(df_clean[[col_name]])
+      }
+    }
+  }
+  return(df_clean)
+}
+target <- "ClientXref"
+client_subset_clean <- preprocess_data(client_subset[, !colnames(client_subset) %in% c(target)])
+client_subset_clean$ClientXref <- as.factor(client_subset[[target]])
+convert_to_numeric <- function(df) {
+  df_numeric <- df
+  for (col_name in colnames(df_numeric)) {
+    if (is.factor(df_numeric[[col_name]]) || is.character(df_numeric[[col_name]])) {
+      df_numeric[[col_name]] <- as.numeric(as.factor(df_numeric[[col_name]]))
+    }
+  }
+  return(df_numeric)
+}
+predictors <- client_subset_clean[, !colnames(client_subset_clean) %in% c(target)]
+client_subset_clean$Cost <- as.numeric(as.factor(client_subset_clean$Cost))
+
+
+```
+
+```{r}
+library(caret)
+library(leaps)
+library(dplyr)
+library(randomForest)
+
+
+target <- "ClientXref"
+
+ctrl <- rfeControl(functions = rfFuncs, method = "cv", number = 10)
+
+client_subset_clean$Target <- ifelse(client_subset_clean$ClientXref == "Client 49", 1, 0)
+client_subset_clean$Target <- factor(client_subset_clean$Target)
+
+
+
+# Recursive Feature Elimination
+exhaustive_search <- regsubsets(ClientXref ~ ., data = client_subset_clean, nvmax = 4, nbest = 10, method = "forward")
+summary_exhaustive <- summary(exhaustive_search)
+
+print(summary_exhaustive$which)
+best_model_index <- which.min(summary_exhaustive$bic)
+best_model_variables <- names(which(summary_exhaustive$which[best_model_index, ] == TRUE))
+
+print(paste("Best model variables:", paste(best_model_variables, collapse = ", ")))
+
+print(best_model_variables)
+
+
+```
+
+```{r}
+library(caret)
+library(leaps)
+library(dplyr)
+library(randomForest)
+
+target <- "ClientXref"
+ctrl <- rfeControl(functions = rfFuncs, method = "cv", number = 10)
+
+client_subset_clean$Target <- ifelse(client_subset_clean$ClientXref == "Client 27", 1, 0)
+client_subset_clean$Target <- factor(client_subset_clean$Target)
+filtered_data <- client_subset_clean %>% filter(Target == 1)
+
+problem_table <- table(filtered_data$Problem)
+problem_df <- as.data.frame(problem_table)
+colnames(problem_df) <- c("Problem", "Frequency")
+problem_df$Percentage <- (problem_df$Frequency / sum(problem_df$Frequency)) * 100
+top_10_problem_df <- head(problem_df[order(-problem_df$Frequency), ], 10)
+
+workcategory_table <- table(filtered_data$WorkCategory)
+workcategory_df <- as.data.frame(workcategory_table)
+colnames(workcategory_df) <- c("WorkCategory", "Frequency")
+workcategory_df$Percentage <- (workcategory_df$Frequency / sum(workcategory_df$Frequency)) * 100
+top_10_workcategory_df <- head(workcategory_df[order(-workcategory_df$Frequency), ], 10)
+
+worktype_table <- table(filtered_data$WorkType)
+worktype_df <- as.data.frame(worktype_table)
+colnames(worktype_df) <- c("WorkType", "Frequency")
+worktype_df$Percentage <- (worktype_df$Frequency / sum(worktype_df$Frequency)) * 100
+top_10_worktype_df <- head(worktype_df[order(-worktype_df$Frequency), ], 10)
+
+print("Frequency Table for Problem")
+print(problem_df)
+print(top_10_problem_df)
+
+print("Frequency Table for WorkCategory")
+print(workcategory_df)
+print(top_10_workcategory_df)
+
+print("Frequency Table for Worktype")
+print(worktype_df)
+print(top_10_worktype_df)
+
+```
+
+```{r}
+library(caret)
+library(dplyr)
+library(randomForest)
+
+target <- "ClientXref"
+
+ctrl <- rfeControl(functions = rfFuncs, method = "cv", number = 10)
+
+client_subset_clean$Target <- ifelse(client_subset_clean$ClientXref == "Client 66", 1, 0)
+client_subset_clean$Target <- factor(client_subset_clean$Target)
+
+filtered_data <- client_subset_clean %>% filter(Target == 1)
+
+clean_column_names <- function(df) {
+  colnames(df) <- gsub("[[:space:]]", "_", colnames(df)) # Replace spaces with underscores
+  colnames(df) <- gsub("[[:punct:]]", "_", colnames(df)) # Replace punctuation with underscores
+  colnames(df) <- make.names(colnames(df), unique = TRUE) # Make valid and unique column names
+  return(df)
+}
+
+client_subset_clean <- clean_column_names(client_subset_clean)
+
+# The initial model 
+initial_formula <- as.formula(paste("Cost ~", paste(colnames(client_subset_clean)[!colnames(client_subset_clean) %in% c("Cost","ClientXref", "Target")], collapse = " + ")))
+Cost_model <- lm(initial_formula, data = filtered_data)
+
+model_summary <- summary(Cost_model)
+
+coefficients_table <- model_summary$coefficients
+significant_predictors <- rownames(coefficients_table)[coefficients_table[, "Pr(>|t|)"] < 0.05]
+
+significant_predictors <- significant_predictors[significant_predictors != "(Intercept)"]
+significant_predictors
+
+set.seed(123)
+train_control <- trainControl(method = "cv", number = 10)
+model_cv <- train(initial_formula, data = filtered_data, method = "lm", trControl = train_control)
+print(model_cv)
+#Refined model
+Refinedcostmodel <- lm(Cost ~ TotalWorkOrderHours + WorkCategory + Priority + Cause + WorkType + DateCreated + Problem, data = filtered_data)
+summary(Refinedcostmodel)
+formula <- Cost ~ TotalWorkOrderHours + WorkCategory + Priority + DateCreated 
+
+cv_model <- train(formula, data = filtered_data, method = "lm", trControl = train_control, metric = "RMSE")
+print(cv_model)
+
+```
+
+
+```{r}
+library(xgboost)
+library(caret)
+library(dplyr)
+library(randomForest)
+
+target <- "ClientXref"
+ctrl <- rfeControl(functions = rfFuncs, method = "cv", number = 10)
+# Filter data 
+client_subset_clean$Target <- ifelse(client_subset_clean$ClientXref == "Client 49", 1, 0)
+client_subset_clean$Target <- factor(client_subset_clean$Target)
+
+filtered_data <- client_subset_clean %>% filter(Target == 1)
+filtered_data <- filtered_data %>% filter(Cost != 0)
+
+# Cleaning column names
+clean_column_names <- function(df) {
+  colnames(df) <- gsub("[[:space:]]", "_", colnames(df)) # Replace spaces with underscores
+  colnames(df) <- gsub("[[:punct:]]", "_", colnames(df)) # Replace punctuation with underscores
+  colnames(df) <- make.names(colnames(df), unique = TRUE) # Make valid and unique column names
+  return(df)
+}
+
+client_subset_clean <- clean_column_names(client_subset_clean)
+#Define an initial formula 
+formula <- TotalWorkOrderHours ~ Cost + WorkCategory + DateCreated + Priority
+
+train_data <- model.matrix(formula, data = filtered_data)[, -1] # Remove intercept
+train_labels <- filtered_data$TotalWorkOrderHours
+xgb_cv <- xgb.cv(data = train_data, label = train_labels, nrounds = 100, nfold = 10, 
+                 objective = "reg:squarederror", metrics = "rmse", 
+                 early_stopping_rounds = 10, verbose = TRUE)
+xgb_model <- xgboost(data = train_data, label = train_labels, nrounds = xgb_cv$best_iteration, 
+                     objective = "reg:squarederror")
+preds <- predict(xgb_model, train_data)
+xgb_rmse <- sqrt(mean((preds - train_labels)^2))
+xgb_r_squared <- cor(preds, train_labels)^2
+print(paste("XGBoost RMSE:", xgb_rmse))
+print(paste("XGBoost R-squared:", xgb_r_squared))
+plot(preds)
+
+```
+
+
+```{r}
+plot(train_labels, preds, main = "Actual vs Predicted Values", 
+     xlab = "Actual Values", ylab = "Predicted Values", pch = 19)
+abline(a = 0, b = 1, col = "red")
+
+legend("topleft", legend = paste("R-squared =", round(xgb_r_squared, 2)), 
+       bty = "n", col = "blue")
+```
+
+```{r}
+
+xgb_cv_log <- xgb_cv$evaluation_log
+
+plot(xgb_cv_log$iter, xgb_cv_log$train_rmse_mean, type = "l", col = "blue", 
+     main = "Learning Curve", xlab = "Iteration", ylab = "RMSE")
+lines(xgb_cv_log$iter, xgb_cv_log$test_rmse_mean, col = "red")
+legend("topright", legend = c("Train RMSE", "Test RMSE"), col = c("blue", "red"), lty = 1)
+
+```
+```{r}
+importance <- xgb.importance(model = xgb_model)
+importance
+xgb.plot.importance(importance[1:10, ], main = "Top 10 Feature Importance")
+```
+# Total Work Order Hours XG Boost model
+```{r}
+
+library(caret)
+library(dplyr)
+library(randomForest)
+
+target <- "ClientXref"
+
+ctrl <- rfeControl(functions = rfFuncs, method = "cv", number = 10)
+
+client_subset_clean$Target <- ifelse(client_subset_clean$ClientXref == "Client 49", 1, 0)
+client_subset_clean$Target <- factor(client_subset_clean$Target)
+
+filtered_data <- client_subset_clean %>% filter(Target == 1)
+
+clean_column_names <- function(df) {
+  colnames(df) <- gsub("[[:space:]]", "_", colnames(df)) # Replace spaces with underscores
+  colnames(df) <- gsub("[[:punct:]]", "_", colnames(df)) # Replace punctuation with underscores
+  colnames(df) <- make.names(colnames(df), unique = TRUE) # Make valid and unique column names
+  return(df)
+}
+
+client_subset_clean <- clean_column_names(client_subset_clean)
+
+#The initial model
+initial_formula <- as.formula(paste("TotalWorkOrderHours ~", paste(colnames(client_subset_clean)[!colnames(client_subset_clean) %in% c("TotalWorkOrderHours","ClientXref", "Target")], collapse = " + ")))
+TWOH_model <- lm(initial_formula, data = filtered_data)
+
+model_summary <- summary(TWOH_model)
+
+coefficients_table <- model_summary$coefficients
+
+significant_predictors <- rownames(coefficients_table)[coefficients_table[, "Pr(>|t|)"] < 0.05]
+
+significant_predictors <- significant_predictors[significant_predictors != "(Intercept)"]
+significant_predictors
+
+set.seed(123)
+train_control <- trainControl(method = "cv", number = 10)
+model_cv <- train(initial_formula, data = filtered_data, method = "lm", trControl = train_control)
+print(model_cv)
+
+Refinedcostmodel <- lm(Cost ~ TotalWorkOrderHours + WorkCategory + Priority + Cause + WorkType + DateCreated + Problem, data = filtered_data)
+summary(Refinedcostmodel)
+formula <- Cost ~ TotalWorkOrderHours + WorkCategory + Priority + Cause + WorkType + DateCreated + Problem
+
+cv_model <- train(formula, data = filtered_data, method = "lm", trControl = train_control, metric = "RMSE")
+# Print the cross-validation results
+print(cv_model)
+```
+
+```{r Anomalize}
+library(anomalize)
+
+relevant_vars <- c("TotalWorkOrderHours", 
+                   "Cost", "WorkCategory", "Priority", "Cause", "EstimatedStartDate", "WorkType", "StatusCategory", "DateCreated","Problem", "ClientXref")
+```
+
+```{r Subset relevant variables}
+# Create a subset of your data with only the relevant variables
+library(tibble)
+library(dplyr)
+```
+
+```{r Subset relevant variables}
+subset_data <- workorder[, relevant_vars]
+subset_data <- as_tibble(subset_data)
+subset_data$Priority[subset_data$Priority == "-"] <- NA
+subset_data$Priority <- as.factor(subset_data$Priority)
+subset_data <- subset_data %>%
+  mutate(across(Priority, ~as.integer(. == levels(.))))
+subset_data$Priority <- as.character(workorder$Priority)
+subset_data[2, "Priority"] <- "-"
+subset_data$Priority <- as.factor(workorder$Priority)
+subset_data[subset_data == "-"] <- NA
+```
+
+```{r }
+# Create a subset of your data with only the relevant variables
+subset_data <- workorder[, relevant_vars]
+subset_data <- as_tibble(subset_data)
+subset_data$Priority[subset_data$Priority == "-"] <- NA
+subset_data$Priority <- as.factor(subset_data$Priority)
+subset_data <- subset_data %>%
+  mutate(across(Priority, ~as.integer(. == levels(.))))
+```
+
+
+
+

@@ -1,0 +1,77 @@
+---
+title: "Project_621"
+format: html
+editor: visual
+---
+
+```{r}
+bookingdata <- (customer_booking)
+summary(bookingdata)
+str(bookingdata)
+```
+
+```{r}
+# Booking completion Pie chart
+completion_counts <- table(bookingdata$booking_complete)
+pie(completion_counts, labels = c("Completed", "Not Completed"), main = "Booking Completion")
+
+```
+
+```{r}
+library(ggplot2)
+#Create a bar chart comparing Sales channel and Purchase lead
+
+ggplot(bookingdata, aes(x = sales_channel, fill = purchase_lead)) +
+  geom_bar(position = "dodge", stat = "count") +
+  labs(title = "Comparison of Sales Channel and Purchase Lead",
+       x = "Sales Channel",
+       y = "Count of Purchase Lead") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(bookingdata, aes(x = num_passengers)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  facet_wrap(~trip_type, ncol = 2) +
+  labs(title = "Distribtution of the Number of Passengers by Trip Type",
+       x = "Number of passengers",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+```{r}
+
+library(corrplot)
+
+
+# Convert non-numeric variables to numeric 
+bookingdata_numeric <- bookingdata
+numeric_values <- bookingdata_numeric[, 
+                                    sapply(bookingdata_numeric,
+                                           function(x) is.numeric(x) |
+                                             is.integer(x)) &
+                                      !apply(is.na(bookingdata_numeric),
+                                             2, any)]
+# Remove non-numeric variables if they are not relevant 
+bookingdata_numeric <- bookingdata_numeric[, sapply(bookingdata_numeric, is.numeric)]
+correlation_matrix <- cor(bookingdata_numeric)
+print(correlation_matrix)
+
+heatmap(correlation_matrix, 
+        symm = TRUE, 
+        main = "Correlation Matrix", 
+        xlab = "Variables", 
+        ylab = "Variables")
+```
+
+```{r}
+library(lubridate)
+# number of workorders in each category
+ggplot(bookingdata, aes(x = num_passengers)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Booking Completion by Number of Passengers",
+       x = "Number of Passengers",
+       y = "Frequency of completion") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
